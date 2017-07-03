@@ -32,7 +32,8 @@ dependencies {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
     compile 'com.android.support:appcompat-v7:25.3.1'
-    compile 'com.google.android.gms:play-services-maps:10.2.1'
+    compile 'com.google.android.gms:play-services-maps:11.0.2'
+    compile 'com.google.android.gms:play-services-location:11.0.2'
     // This library handles authentication and authorization
     compile 'com.spotify.sdk:spotify-android-auth-1.0.0@aar'
     // This library handles music playback

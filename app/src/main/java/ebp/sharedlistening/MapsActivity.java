@@ -1,10 +1,13 @@
 package ebp.sharedlistening;
 
 import android.content.Intent;
+import android.location.Location;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -12,6 +15,7 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.spotify.sdk.android.authentication.AuthenticationClient;
 import com.spotify.sdk.android.authentication.AuthenticationRequest;
 import com.spotify.sdk.android.authentication.AuthenticationResponse;
@@ -34,6 +38,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int SPOTIFY_REQUEST_CODE = 1337;
     //Spotify Player
     private Player mPlayer;
+    //private FusedLocationProviderClient mFusedLocationClient;
 
     //Google Maps --Currently Sets Marker and Position to Sydney
 
@@ -52,6 +57,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         spotAuthBuilder.setScopes(new String[]{"user-read-private", "streaming"});
         AuthenticationRequest spotAuthReq = spotAuthBuilder.build();
         AuthenticationClient.openLoginActivity(this, SPOTIFY_REQUEST_CODE, spotAuthReq);
+      //  mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+
+
     }
 
     //Get Results vom Lauched Activities through intents
@@ -101,11 +110,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
         // Add a marker in Sydney and move the camera
         LatLng sydney = new LatLng(-34, 151);
         mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        /*
+        mFusedLocationClient.getLastLocation()
+                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) {
+                        // Got last known location. In some rare situations this can be null.
+                        if (location != null) {
+                            Log.v("Wichtig",location.toString());
+                        }
+                    }
+                });
+        */
     }
 
     //Spotify Overrides
