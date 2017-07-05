@@ -1,11 +1,23 @@
 package ebp.sharedlistening;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.location.Location;
+import android.os.AsyncTask;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.view.View;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -27,7 +39,19 @@ import com.spotify.sdk.android.player.Spotify;
 import com.spotify.sdk.android.player.SpotifyPlayer;
 import com.spotify.sdk.android.player.Error;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.lang.reflect.Array;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SpotifyPlayer.NotificationCallback, ConnectionStateCallback {
+
+    private static String apiUrl = "http://192.168.178.35:3000/users";
 
     private GoogleMap mMap;
 
@@ -38,7 +62,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int SPOTIFY_REQUEST_CODE = 1337;
     //Spotify Player
     private Player mPlayer;
-    //private FusedLocationProviderClient mFusedLocationClient;
+    private FusedLocationProviderClient mFusedLocationClient;
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     //Google Maps --Currently Sets Marker and Position to Sydney
 
@@ -57,32 +82,31 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         spotAuthBuilder.setScopes(new String[]{"user-read-private", "streaming"});
         AuthenticationRequest spotAuthReq = spotAuthBuilder.build();
         AuthenticationClient.openLoginActivity(this, SPOTIFY_REQUEST_CODE, spotAuthReq);
-      //  mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
 
     }
 
     //Get Results vom Lauched Activities through intents
     @Override
-    protected  void onActivityResult(int requestCode, int resultCode, Intent intent){
+    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
 
         //SpotifyLoginActivity
-        if(resultCode == SPOTIFY_REQUEST_CODE){
+        if (resultCode == SPOTIFY_REQUEST_CODE) {
             AuthenticationResponse spotAuthRes = AuthenticationClient.getResponse(resultCode, intent);
-            if(spotAuthRes.getType() == AuthenticationResponse.Type.TOKEN){
+            if (spotAuthRes.getType() == AuthenticationResponse.Type.TOKEN) {
                 Config spotPlayerConfig = new Config(this, spotAuthRes.getAccessToken(), SPOTIFY_CLIENT_ID);
-                Spotify.getPlayer(spotPlayerConfig, this, new SpotifyPlayer.InitializationObserver(){
+                Spotify.getPlayer(spotPlayerConfig, this, new SpotifyPlayer.InitializationObserver() {
                     @Override
-                    public void onInitialized(SpotifyPlayer spotifyPlayer){
+                    public void onInitialized(SpotifyPlayer spotifyPlayer) {
                         mPlayer = spotifyPlayer;
                         mPlayer.addConnectionStateCallback(MapsActivity.this);
                         mPlayer.addNotificationCallback(MapsActivity.this);
                     }
 
                     @Override
-                    public void onError(Throwable error){
+                    public void onError(Throwable error) {
                         Log.e("MapsActivity", "Could not initialize Spotify Player: " + error.getMessage());
                     }
                 });
@@ -92,12 +116,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     //Destroy the Player when the Activity is closed - Probably wont be able to run in the background with this
     @Override
-    protected void onDestroy(){
+    protected void onDestroy() {
         Spotify.destroyPlayer(this);
         super.onDestroy();
     }
 
     //Map Overrides
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.
@@ -112,20 +137,144 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
         // Add a marker in Sydney and move the camera
         LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        //mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
+        //mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+
         /*
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Log.v("Wichtig", "returned");
+            return;
+        }
+        */
+            checkPermission();
+            mMap.setMyLocationEnabled(true);
+            mFusedLocationClient.getLastLocation()
+                    .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                        @Override
+                        public void onSuccess(Location location) {
+                            // Got last known location. In some rare situations this can be null.
+                            if (location != null) {
+                                LatLng home = new LatLng(location.getLatitude(), location.getLongitude());
+                               // mMap.addMarker(new MarkerOptions().position(home).title("Your location"));
+                                mMap.setMinZoomPreference(15);
+                                mMap.moveCamera(CameraUpdateFactory.newLatLng(home));
+                            }
+                        }
+                    });
+
+            }
+
+    public void getSongs(View view){
+        Log.v("SONGS","GOTEM");
+        //new BackendTask().execute();
+        checkPermission();
         mFusedLocationClient.getLastLocation()
                 .addOnSuccessListener(this, new OnSuccessListener<Location>() {
                     @Override
                     public void onSuccess(Location location) {
                         // Got last known location. In some rare situations this can be null.
                         if (location != null) {
-                            Log.v("Wichtig",location.toString());
+                            Log.v("Request", location.toString());
+                            RequestQueue requestQueue = Volley.newRequestQueue(getApplicationContext());
+
+                            // Initialize a new JsonArrayRequest instance
+                            JsonArrayRequest jsonArrayRequest = new JsonArrayRequest(
+                                    Request.Method.GET,
+                                    apiUrl + "/?latitude=" +location.getLatitude()+ "&longitude=" + location.getLongitude() + "&distance=1",
+                                    //"http://pastebin.com/raw/Em972E5s",
+                                    null,
+                                    new Response.Listener<JSONArray>() {
+                                        @Override
+                                        public void onResponse(JSONArray response) {
+                                            // Do something with response
+                                            //mTextView.setText(response.toString());
+
+                                            // Process the JSON
+                                            try{
+                                                // Loop through the array elements
+                                                for(int i=0;i<response.length();i++){
+                                                    // Get current json object
+                                                    JSONObject obj = response.getJSONObject(i);
+                                                    JSONObject loc = obj.getJSONObject("location");
+                                                    JSONArray coords = loc.getJSONArray("coordinates");
+                                                    JSONObject song = obj.getJSONObject("song");
+
+                                                    Log.v("loc",loc.toString());
+                                                    Log.v("OBJ",obj.toString());
+                                                    Log.v("COORDS",coords.toString());
+                                                    LatLng user = new LatLng(coords.getDouble(1), coords.getDouble(0));
+
+                                                    String title = "Song :" + song.getString("titel") + "\n";
+                                                    if(song.has("album")){
+                                                      //  title += "Album : " + song.getString("album")  + "\n";
+                                                    }
+                                                    if(song.has("interpret")){
+                                                        //title += "Interpret : " + song.getString("interpret")  + "\n";
+                                                    }
+
+
+                                                    mMap.addMarker(new MarkerOptions()
+                                                            .position(user)
+                                                            .title(obj.getString("username"))
+                                                            .snippet(title));
+
+
+                                                }
+                                            }catch (JSONException e){
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                    },
+                                    new Response.ErrorListener(){
+                                        @Override
+                                        public void onErrorResponse(VolleyError error){
+                                            // Do something when error occurred
+                                            Log.v("Volley",error.toString());
+                                        }
+                                    }
+                            );
+
+                            // Add JsonArrayRequest to the RequestQueue
+                            requestQueue.add(jsonArrayRequest);
                         }
                     }
                 });
-        */
+
+
+
+
+
+    }
+
+    private void enableMyLocation() {
+        checkPermission();
+        if (mMap != null) {
+            // Access to the location has been granted to the app.
+            mMap.setMyLocationEnabled(true);
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (permissions.length == 1 &&
+                    permissions[0] == Manifest.permission.ACCESS_FINE_LOCATION &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                checkPermission();
+                mMap.setMyLocationEnabled(true);
+            } else {
+                // Permission was denied. Display an error message.
+            }
+        }
+    }
+    public void checkPermission(){
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(this,Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                ){//Can add more as per requirement
+            Log.v("Check", "requestPerm");
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION},
+                    123);
+        }
     }
 
     //Spotify Overrides
@@ -175,4 +324,36 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onConnectionMessage(String message) {
         Log.d("MapActivity", "Received connection message: " + message);
     }
+
+    private class BackendTask extends AsyncTask {
+
+        @Override
+        protected Object doInBackground(Object[] params) {
+            try {
+                URL url = new URL(apiUrl + "/test");
+                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+                try {
+                    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(urlConnection.getInputStream()));
+                    StringBuilder stringBuilder = new StringBuilder();
+                    String line;
+                    while ((line = bufferedReader.readLine()) != null) {
+                        stringBuilder.append(line).append("\n");
+                    }
+                    bufferedReader.close();
+                    Log.v("String",stringBuilder.toString());
+                    return stringBuilder.toString();
+                }
+                finally{
+                    urlConnection.disconnect();
+                }
+            }
+            catch(Exception e) {
+                Log.e("ERROR", e.getMessage(), e);
+                return e.getMessage();
+            }
+        }
+    }
+
+
+
 }
