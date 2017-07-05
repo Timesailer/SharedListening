@@ -51,7 +51,7 @@ import java.net.URL;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SpotifyPlayer.NotificationCallback, ConnectionStateCallback {
 
-    private static String apiUrl = "http://192.168.178.35:3000/users";
+    private static String apiUrl = "http://192.168.178.22:3000/users";
 
     private GoogleMap mMap;
 
@@ -186,25 +186,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                     new Response.Listener<JSONArray>() {
                                         @Override
                                         public void onResponse(JSONArray response) {
-                                            // Do something with response
-                                            //mTextView.setText(response.toString());
-
-                                            // Process the JSON
                                             try{
-                                                // Loop through the array elements
                                                 for(int i=0;i<response.length();i++){
-                                                    // Get current json object
                                                     JSONObject obj = response.getJSONObject(i);
                                                     JSONObject loc = obj.getJSONObject("location");
                                                     JSONArray coords = loc.getJSONArray("coordinates");
                                                     JSONObject song = obj.getJSONObject("song");
-
-                                                    Log.v("loc",loc.toString());
-                                                    Log.v("OBJ",obj.toString());
-                                                    Log.v("COORDS",coords.toString());
                                                     LatLng user = new LatLng(coords.getDouble(1), coords.getDouble(0));
 
-                                                    String title = "Song :" + song.getString("titel") + "\n";
+                                                    String title = "Song : " + song.getString("titel") + "\n";
                                                     if(song.has("album")){
                                                       //  title += "Album : " + song.getString("album")  + "\n";
                                                     }
