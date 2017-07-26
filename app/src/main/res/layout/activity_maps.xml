@@ -10,21 +10,14 @@
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center|bottom"
-        android:text="Get Songs"
-        android:padding="10dp"
-        android:layout_marginTop="20dp"
-        android:onClick="getSongs">
-    </Button>
-
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|left"
+        android:layout_gravity="bottom|center"
         android:text="Set Song"
         android:padding="10dp"
         android:layout_marginTop="20dp"
+        android:background="@color/colorButton"
+        android:textColor="@color/colorText"
         android:onClick="setSong">
+
     </Button>
 
     <Button
@@ -35,6 +28,8 @@
         android:text="follow User"
         android:padding="10dp"
         android:layout_marginTop="20dp"
+        android:background="@color/colorButton"
+        android:textColor="@color/colorText"
         android:onClick="followUser">
     </Button>
 
@@ -46,6 +41,8 @@
         android:text="Listen to song"
         android:padding="10dp"
         android:layout_marginTop="20dp"
+        android:background="@color/colorButton"
+        android:textColor="@color/colorText"
         android:onClick="listenToSong">
     </Button>
 

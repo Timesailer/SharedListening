@@ -5,12 +5,11 @@ package ebp.sharedlistening;
  */
 
 public class SpotifyMetadata {
-    public SpotifyMetadata(String trackId, String artistName, String albumName, String trackName, int trackLengthInSec) {
+    public SpotifyMetadata(String trackId, String artistName, String albumName, String trackName) {
         this.trackId = trackId;
         this.artistName = artistName;
         this.albumName = albumName;
         this.trackName = trackName;
-        this.trackLengthInSec = trackLengthInSec;
     }
 
     public String getTrackId() {
@@ -44,14 +43,6 @@ public class SpotifyMetadata {
 
     public void setTrackName(String trackName) {
         this.trackName = trackName;
-    }
-
-    public int getTrackLengthInSec() {
-        return trackLengthInSec;
-    }
-
-    public void setTrackLengthInSec(int trackLengthInSec) {
-        this.trackLengthInSec = trackLengthInSec;
     }
 
     private String trackId;

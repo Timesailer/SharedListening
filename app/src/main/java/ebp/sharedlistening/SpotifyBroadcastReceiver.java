@@ -26,8 +26,8 @@ public class SpotifyBroadcastReceiver extends BroadcastReceiver {
         // System.currentTimeMillis(), which you can compare to in order to determine how
         // old the event is.
         long timeSentInMs = intent.getLongExtra("timeSent", 0L);
-
         String action = intent.getAction();
+        Log.v("On",action);
 
         if (action.equals(BroadcastTypes.METADATA_CHANGED)) {
             String trackId = intent.getStringExtra("id");
@@ -37,7 +37,7 @@ public class SpotifyBroadcastReceiver extends BroadcastReceiver {
             int trackLengthInSec = intent.getIntExtra("length", 0);
             // Do something with extracted information...
             Log.v("BroadcastReceiver", "Song: " + artistName + " - " + trackName + " id: " + trackId);
-            receivedSingleton.updateMetadata(new SpotifyMetadata(trackId,artistName,albumName,trackName,trackLengthInSec), timeSentInMs);
+            receivedSingleton.updateMetadata(new SpotifyMetadata(trackId,artistName,albumName,trackName), timeSentInMs);
         } else if (action.equals(BroadcastTypes.PLAYBACK_STATE_CHANGED)) {
             boolean playing = intent.getBooleanExtra("playing", false);
             int positionInMs = intent.getIntExtra("playbackPosition", 0);

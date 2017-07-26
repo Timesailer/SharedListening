@@ -1,12 +1,15 @@
 package ebp.sharedlistening;
 
 import android.Manifest;
+import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.location.Location;
+import android.net.ConnectivityManager;
 import android.os.AsyncTask;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
@@ -77,7 +80,7 @@ import retrofit.RetrofitError;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SpotifyPlayer.NotificationCallback, ConnectionStateCallback, GoogleMap.OnInfoWindowCloseListener, GoogleMap.OnMarkerClickListener {
 
-    private static String apiUrl = "http://192.168.178.44:3000/users";
+    private static String apiUrl = "http://192.168.178.22:3000/users";
 
     private GoogleMap mMap;
     private Button playButton;
@@ -100,6 +103,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Player mPlayer;
     private FusedLocationProviderClient mFusedLocationClient;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
+    private SpotifyBroadcastReceiver receiver;
 
     private String ownSpotToken;
     //Google Maps --Currently Sets Marker and Position to Sydney
@@ -126,7 +130,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         AuthenticationClient.openLoginActivity(this, SPOTIFY_REQUEST_CODE, spotAuthReq);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-
+        /*
+        receiver = new SpotifyBroadcastReceiver();
+        Log.v("META",SpotifyBroadcastReceiver.BroadcastTypes.METADATA_CHANGED);
+        IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+        filter.addAction(SpotifyBroadcastReceiver.BroadcastTypes.PLAYBACK_STATE_CHANGED);
+        filter.addAction(SpotifyBroadcastReceiver.BroadcastTypes.METADATA_CHANGED);
+        filter.addAction(SpotifyBroadcastReceiver.BroadcastTypes.QUEUE_CHANGED);
+        this.registerReceiver(receiver, filter);
+        */
     }
 
     //Get Results vom Lauched Activities through intents
@@ -167,6 +179,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onDestroy() {
         Spotify.destroyPlayer(this);
+        //this.unregisterReceiver(receiver);
         super.onDestroy();
     }
 
@@ -219,14 +232,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-/*
+
         ScheduledExecutorService scheduleTaskExecutor = Executors.newScheduledThreadPool(5);
         scheduleTaskExecutor.scheduleAtFixedRate(new Runnable() {
             public void run() {
                 requestSongs();
             }
         }, 0, 15, TimeUnit.SECONDS);
-*/
+
 
         checkPermission();
         mMap.setMyLocationEnabled(true);
@@ -275,20 +288,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void setSong(View view) {
         //get Metadata - Prioritizing the Spotify app, with app player as fallback for now, because thats more important for our use cases
         //fetched uris are the same no matter the acquisition method
-        Log.v("SONGS", spotifyApp.getUserid());
-        String curArtist = "";
-        String curTitle = "";
-        String curAlbum = "";
-        String curUri = "";
+        SpotifyMetadata currentSong = null;
 
         //currentPlayerPlayedSong
         Metadata.Track currentPlayerTrack = mPlayer.getMetadata().currentTrack;
         if (!(currentPlayerTrack == null)) {
             Log.v("SONGS", "current Song: " + currentPlayerTrack.artistName + " - " + currentPlayerTrack.name);
-            curArtist = currentPlayerTrack.artistName;
-            curTitle = currentPlayerTrack.name;
-            curAlbum = currentPlayerTrack.albumName;
-            curUri = currentPlayerTrack.uri;
+            currentSong = new SpotifyMetadata(currentPlayerTrack.uri,currentPlayerTrack.artistName,currentPlayerTrack.albumName,currentPlayerTrack.name);
         }
 
         
@@ -296,20 +302,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //Check if it fetched at least once: value is time in milis between runtime and jan 1st 1970
         Log.v("SONGS", "" + spotifyApp.getLastMetadataUpdate());
         if (spotifyApp.getLastMetadataUpdate() > 0) {
-            SpotifyMetadata songData = spotifyApp.getMetadata();
-            Log.v("SONGS", "current Song: " + songData.getArtistName() + " - " + songData.getTrackName());
-            curArtist = songData.getArtistName();
-            curTitle = songData.getTrackName();
-            curAlbum = songData.getAlbumName();
-            curUri = songData.getTrackId();
-            Log.v("SONGS", "spotify App URI: " + curUri);
+            currentSong = spotifyApp.getMetadata();
+            Log.v("SONGS", "spotify App URI: ");
         }
-        sendCurrentSong();
+
+
+        if(currentSong != null){
+            sendCurrentSong(currentSong);
+        }else{
+            Toast toast = Toast.makeText(getApplicationContext(), "You aren't listening to any music!", Toast.LENGTH_LONG);
+            toast.show();
+        }
+
         //TODO: check a songfield for an empty string to see if something is playing
 
     }
 
-    public void sendCurrentSong() {
+    public void sendCurrentSong(final SpotifyMetadata song) {
         checkPermission();
         mFusedLocationClient.getLastLocation()
                 .addOnSuccessListener(this, new OnSuccessListener<Location>() {
@@ -318,13 +327,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         // Got last known location. In some rare situations this can be null.
                         if (location != null) {
                             RequestQueue requestQueue = Volley.newRequestQueue(getApplicationContext());
-                            uploadSong(requestQueue,location);
+                            uploadSong(requestQueue,location,song);
                         }
                     }
                 });
     }
 
-    public void uploadSong(RequestQueue requestQueue,final Location location) {
+    public void uploadSong(RequestQueue requestQueue,final Location location,final SpotifyMetadata song) {
         String url = apiUrl + "/" + spotifyApp.getUserid();
         StringRequest putRequest = new StringRequest(Request.Method.PUT, url,
                 new Response.Listener<String>() {
@@ -339,7 +348,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         Log.d("PUT_ERROR", "" + error.getMessage() + "," + error.toString());
-
+                        Toast toast = Toast.makeText(getApplicationContext(), "There was an connection issue", Toast.LENGTH_LONG);
+                        toast.show();
                     }
                 }
         ) {
@@ -350,9 +360,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 params.put("Content-Type", "application/x-www-form-urlencoded");
                 params.put("longitude", "" + location.getLongitude());
                 params.put("latitude", "" + location.getLatitude());
-                params.put("titel", "TEST");
-                params.put("interpret", "A$AP TEST");
-                params.put("spotifyURI", "spotify:track:4ZfFLcsuQCk7GiChENoly9");
+                params.put("titel", "" + song.getTrackName());
+                params.put("interpret", "" + song.getArtistName());
+                params.put("album", "" + song.getAlbumName());
+                params.put("spotifyURI", song.getTrackId());
                 return params;
             }
 
@@ -401,11 +412,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void requestSongs() {
         Log.v("SONGS", "GOTEM");
 
-        Log.v("SONGS", "id: " + spotifyApp.getUserid());
-
-
-
-        //new BackendTask().execute();
         checkPermission();
         mFusedLocationClient.getLastLocation()
                 .addOnSuccessListener(this, new OnSuccessListener<Location>() {
@@ -441,13 +447,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                                     if (song.has("interpret")) {
                                                         title += "Interpret : " + song.getString("interpret") + "\n";
                                                     }
-                                                    Log.v("Request", title);
                                                     if (obj.has("userID") && song.has("spotifyURI")) {
                                                         Marker marker = mMap.addMarker(new MarkerOptions()
                                                                 .position(user)
                                                                 .title(obj.getString("userID"))
                                                                 .snippet(title));
+
                                                         marker.setTag(new Infos(obj.getString("userID"), song.getString("spotifyURI")));
+                                                        marker.setIcon((BitmapDescriptorFactory.fromAsset("headphones.png")));
                                                     }
 
 
@@ -532,7 +539,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onLoggedIn() {
         Log.d("MapActivity", "User logged in");
-        mPlayer.playUri(null, "spotify:track:0oOvCyoDVfZ5FOQzR6hxoR", 0, 0);
+        //mPlayer.playUri(null, "spotify:track:0oOvCyoDVfZ5FOQzR6hxoR", 0, 0);
     }
 
     @Override
@@ -599,18 +606,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast toast = Toast.makeText(getApplicationContext(), "Your are now following " + userId, Toast.LENGTH_LONG);
+                            Toast toast = Toast.makeText(getApplicationContext(), "You are now following " + userId, Toast.LENGTH_LONG);
                             toast.show();
                         }
                     });
                 }
 
                 @Override
-                public void failure(RetrofitError error) {
+                public void failure(final RetrofitError error) {
                     //follow failed
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            Log.e("Follow",error.getLocalizedMessage(), error.getCause());
                             Toast toast = Toast.makeText(getApplicationContext(), "Following " + userId + " failed", Toast.LENGTH_LONG);
                             toast.show();
                         }
