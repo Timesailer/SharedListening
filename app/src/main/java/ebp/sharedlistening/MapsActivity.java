@@ -77,7 +77,7 @@ import retrofit.RetrofitError;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SpotifyPlayer.NotificationCallback, ConnectionStateCallback, GoogleMap.OnInfoWindowCloseListener, GoogleMap.OnMarkerClickListener {
 
-    private static String apiUrl = "http://192.168.178.22:3000/users";
+    private static String apiUrl = "http://192.168.178.44:3000/users";
 
     private GoogleMap mMap;
     private Button playButton;
@@ -255,12 +255,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     public void listenToSong(View view) {
+        Infos info = (Infos) activeMarker.getTag();
+        mPlayer.playUri(null, info.songURI, 0, 0);
         Log.v("Listen", "song aktiv");
     }
 
     public void followUser(View view) {
         Infos info = (Infos) activeMarker.getTag();
-        Log.v("Marker", info.userId);
+        new FollowUser().execute(info.userId);
+        //Log.v("Marker", info.userId);
     }
 
 
@@ -348,7 +351,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 params.put("latitude", "" + location.getLatitude());
                 params.put("titel", "TEST");
                 params.put("interpret", "A$AP TEST");
-                params.put("spotifyURI", "track:4ZfFLcsuQCk7GiChENoly9");
+                params.put("spotifyURI", "spotify:track:4ZfFLcsuQCk7GiChENoly9");
                 return params;
             }
 
@@ -398,22 +401,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Log.v("SONGS", "GOTEM");
 
         Log.v("SONGS", "id: " + spotifyApp.getUserid());
-        //Follow user (for now because backendcode is not finished cant be on main thread)
-        /*
-        String userid = spotWebService.getMe().id;
-        spotWebService.followUsers(userid, new Callback<Object>() {
 
-            @Override
-            public void success(Object o, retrofit.client.Response response) {
-                //follow successful
-            }
-
-            @Override
-            public void failure(RetrofitError error) {
-                //follow failed
-            }
-        });
-        */
 
 
         //new BackendTask().execute();
@@ -596,6 +584,41 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
+    private class FollowUser extends AsyncTask{
+
+        @Override
+        protected Object doInBackground(Object[] params) {
+            Log.v("FollowUserAsync", "param: " + params[0]);
+            final String userId = (String)params[0];
+            spotWebService.followUsers(userId, new Callback<Object>() {
+                @Override
+                public void success(Object o, retrofit.client.Response response) {
+                    //follow successful
+
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast toast = Toast.makeText(getApplicationContext(), "Your are now following " + userId, Toast.LENGTH_LONG);
+                            toast.show();
+                        }
+                    });
+                }
+
+                @Override
+                public void failure(RetrofitError error) {
+                    //follow failed
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast toast = Toast.makeText(getApplicationContext(), "Following " + userId + " failed", Toast.LENGTH_LONG);
+                            toast.show();
+                        }
+                    });
+                }
+            });
+            return null;
+        }
+    }
     private class BackendTask extends AsyncTask {
 
         @Override
