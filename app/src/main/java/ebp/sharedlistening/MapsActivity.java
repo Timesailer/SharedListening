@@ -33,6 +33,7 @@ import com.spotify.sdk.android.authentication.AuthenticationRequest;
 import com.spotify.sdk.android.authentication.AuthenticationResponse;
 import com.spotify.sdk.android.player.Config;
 import com.spotify.sdk.android.player.ConnectionStateCallback;
+import com.spotify.sdk.android.player.Metadata;
 import com.spotify.sdk.android.player.Player;
 import com.spotify.sdk.android.player.PlayerEvent;
 import com.spotify.sdk.android.player.Spotify;
@@ -49,11 +50,24 @@ import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import kaaes.spotify.webapi.android.SpotifyApi;
+import kaaes.spotify.webapi.android.SpotifyService;
+import kaaes.spotify.webapi.android.models.UserPrivate;
+import retrofit.Callback;
+import retrofit.RetrofitError;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SpotifyPlayer.NotificationCallback, ConnectionStateCallback {
 
     private static String apiUrl = "http://192.168.178.22:3000/users";
 
     private GoogleMap mMap;
+
+    //Spotify Web API
+    private SpotifyApi spotWebApi = new SpotifyApi();
+    private SpotifyService spotWebService;
+
+    //Spotify Events send from the App, probably a good idea to always check against null or if updatetime >0
+    private SpotifyAppReceivedSingleton spotifyApp = SpotifyAppReceivedSingleton.getInstance();
 
     //Spotify API Credentials
     private static final String SPOTIFY_CLIENT_ID = "c85909acec5348d1adba2e032cd9561e";
@@ -79,10 +93,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         //Authenticate Spotify User on Startup
         AuthenticationRequest.Builder spotAuthBuilder = new AuthenticationRequest.Builder(SPOTIFY_CLIENT_ID, AuthenticationResponse.Type.TOKEN, SPOTIFY_REDIRECT_URI);
-        spotAuthBuilder.setScopes(new String[]{"user-read-private", "streaming"});
+        spotAuthBuilder.setScopes(new String[]{"user-read-private", "streaming", "user-follow-modify"});
         AuthenticationRequest spotAuthReq = spotAuthBuilder.build();
         AuthenticationClient.openLoginActivity(this, SPOTIFY_REQUEST_CODE, spotAuthReq);
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
 
 
     }
@@ -93,9 +108,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onActivityResult(requestCode, resultCode, intent);
 
         //SpotifyLoginActivity
-        if (resultCode == SPOTIFY_REQUEST_CODE) {
+        if (requestCode == SPOTIFY_REQUEST_CODE) {
             AuthenticationResponse spotAuthRes = AuthenticationClient.getResponse(resultCode, intent);
             if (spotAuthRes.getType() == AuthenticationResponse.Type.TOKEN) {
+                //WebApiToken
+                spotWebApi.setAccessToken(spotAuthRes.getAccessToken());
+                spotWebService = spotWebApi.getService();
+                //fetch credentials for backend storage
+                new fetchCredentials().execute("");
+                //PlayerToken
                 Config spotPlayerConfig = new Config(this, spotAuthRes.getAccessToken(), SPOTIFY_CLIENT_ID);
                 Spotify.getPlayer(spotPlayerConfig, this, new SpotifyPlayer.InitializationObserver() {
                     @Override
@@ -166,6 +187,56 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public void getSongs(View view){
         Log.v("SONGS","GOTEM");
+
+        Log.v("SONGS", "id: " + spotifyApp.getUserid());
+        //Follow user (for now because backendcode is not finished cant be on main thread)
+        /*
+        String userid = spotWebService.getMe().id;
+        spotWebService.followUsers(userid, new Callback<Object>() {
+
+            @Override
+            public void success(Object o, retrofit.client.Response response) {
+                //follow successful
+            }
+
+            @Override
+            public void failure(RetrofitError error) {
+                //follow failed
+            }
+        });
+        */
+
+        //get Metadata - Prioritizing the Spotify app, with app player as fallback for now, because thats more important for our use cases
+        //fetched uris are the same no matter the acquisition method
+        String curArtist = "";
+        String curTitle = "";
+        String curAlbum = "";
+        String curUri = "";
+
+        //currentPlayerPlayedSong
+        Metadata.Track currentPlayerTrack = mPlayer.getMetadata().currentTrack;
+        if(!(currentPlayerTrack == null)){
+            Log.v("SONGS", "current Song: " + currentPlayerTrack.artistName + " - " + currentPlayerTrack.name);
+            curArtist = currentPlayerTrack.artistName;
+            curTitle = currentPlayerTrack.name;
+            curAlbum = currentPlayerTrack.albumName;
+            curUri = currentPlayerTrack.uri;
+        }
+
+        //Spotify App playing Song
+        //Check if it fetched at least once: value is time in milis between runtime and jan 1st 1970
+        if(spotifyApp.getLastMetadataUpdate() > 0){
+            SpotifyMetadata songData = spotifyApp.getMetadata();
+            Log.v("SONGS", "current Song: " + songData.getArtistName() + " - " + songData.getTrackName());
+            curArtist = songData.getArtistName();
+            curTitle = songData.getTrackName();
+            curAlbum = songData.getAlbumName();
+            curUri = songData.getTrackId();
+            Log.v("SONGS", "spotify App URI: " + curUri);
+        }
+
+        //TODO: check a songfield for an empty string to see if something is playing
+
         //new BackendTask().execute();
         checkPermission();
         mFusedLocationClient.getLastLocation()
@@ -292,7 +363,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onLoggedIn() {
         Log.d("MapActivity", "User logged in");
 
-        mPlayer.playUri(null, "spotify:track:2TpxZ7JUBn3uw46aR7qd6V", 0, 0);
+        mPlayer.playUri(null, "spotify:track:0oOvCyoDVfZ5FOQzR6hxoR", 0, 0);
     }
 
     @Override
@@ -313,6 +384,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onConnectionMessage(String message) {
         Log.d("MapActivity", "Received connection message: " + message);
+    }
+
+    //because no network stuff in mainthread
+    private class fetchCredentials extends AsyncTask{
+
+        @Override
+        protected Object doInBackground(Object[] params) {
+            spotifyApp.setUserid(spotWebService.getMe().id);
+            return null;
+        }
     }
 
     private class BackendTask extends AsyncTask {
