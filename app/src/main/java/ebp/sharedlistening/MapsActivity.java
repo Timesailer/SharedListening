@@ -291,6 +291,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             curUri = currentPlayerTrack.uri;
         }
 
+        
         //Spotify App playing Song
         //Check if it fetched at least once: value is time in milis between runtime and jan 1st 1970
         Log.v("SONGS", "" + spotifyApp.getLastMetadataUpdate());
