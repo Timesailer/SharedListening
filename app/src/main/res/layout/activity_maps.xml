@@ -17,4 +17,37 @@
         android:onClick="getSongs">
     </Button>
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|left"
+        android:text="Set Song"
+        android:padding="10dp"
+        android:layout_marginTop="20dp"
+        android:onClick="setSong">
+    </Button>
+
+    <Button
+        android:id="@+id/followBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|left"
+        android:text="follow User"
+        android:padding="10dp"
+        android:layout_marginTop="20dp"
+        android:onClick="followUser">
+    </Button>
+
+    <Button
+        android:id="@+id/playBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center"
+        android:text="Listen to song"
+        android:padding="10dp"
+        android:layout_marginTop="20dp"
+        android:onClick="listenToSong">
+    </Button>
+
+
     </fragment>
