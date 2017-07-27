@@ -80,11 +80,12 @@ import retrofit.RetrofitError;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, SpotifyPlayer.NotificationCallback, ConnectionStateCallback, GoogleMap.OnInfoWindowCloseListener, GoogleMap.OnMarkerClickListener {
 
-    private static String apiUrl = "http://192.168.178.22:3000/users";
+    private static String apiUrl = "http://141.64.161.164:3000/users";
 
     private GoogleMap mMap;
     private Button playButton;
     private Button followButton;
+    private Button stateChangeButton;
     private Marker activeMarker;
 
     //Spotify Web API
@@ -114,10 +115,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(R.layout.activity_maps);
         playButton = (Button) findViewById(R.id.playBtn);
         followButton = (Button) findViewById(R.id.followBtn);
-
+        stateChangeButton = (Button) findViewById(R.id.playerBtn);
         playButton.setVisibility(View.GONE);
         followButton.setVisibility(View.GONE);
-
+        stateChangeButton.setVisibility(View.GONE);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -270,6 +271,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void listenToSong(View view) {
         Infos info = (Infos) activeMarker.getTag();
         mPlayer.playUri(null, info.songURI, 0, 0);
+        stateChangeButton.setVisibility(View.VISIBLE);
         Log.v("Listen", "song aktiv");
     }
 
@@ -277,6 +279,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Infos info = (Infos) activeMarker.getTag();
         new FollowUser().execute(info.userId);
         //Log.v("Marker", info.userId);
+    }
+
+    public void playerStateChange(View view){
+        if (mPlayer.getPlaybackState() != null && mPlayer.getPlaybackState().isPlaying) {
+            mPlayer.pause(mOperationCallback);
+        } else {
+            mPlayer.resume(mOperationCallback);
+        }
     }
 
 
@@ -447,7 +457,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                                     if (song.has("interpret")) {
                                                         title += "Interpret : " + song.getString("interpret") + "\n";
                                                     }
-                                                    if (obj.has("userID") && song.has("spotifyURI")) {
+                                                    Log.v("Marker", obj.getString("userID") + "," + spotifyApp.getUserid());
+                                                    if (obj.has("userID") && !(obj.getString("userID").equals(spotifyApp.getUserid())) && song.has("spotifyURI")) {
                                                         Marker marker = mMap.addMarker(new MarkerOptions()
                                                                 .position(user)
                                                                 .title(obj.getString("userID"))
@@ -654,6 +665,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
     }
+    private final Player.OperationCallback mOperationCallback = new Player.OperationCallback() {
+        @Override
+        public void onSuccess() {
+            Log.v("Operation","Ok");
+        }
 
+        @Override
+        public void onError(Error error) {
+            Log.v("Operation",error.toString());
+        }
+    };
 
 }

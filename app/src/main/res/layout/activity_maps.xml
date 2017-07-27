@@ -21,6 +21,22 @@
     </Button>
 
     <Button
+        android:id="@+id/playerBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|left"
+        android:text="Play/Pause"
+        android:padding="10dp"
+        android:layout_marginTop="20dp"
+        android:background="@color/colorButton"
+        android:textColor="@color/colorText"
+        android:onClick="playerStateChange">
+    </Button>
+
+
+
+
+    <Button
         android:id="@+id/followBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
